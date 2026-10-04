@@ -1,10 +1,4 @@
-import analyzer
-import sample_data
-from models import Participant, Session
 from analyzer import FitnessAnalyzer
-from sample_data import get_sample_scenarios
-from utils import format_console_report
-
 import argparse
 from pathlib import Path
 from loader import load_participants, load_sessions

@@ -13,8 +13,11 @@ class RejectedRecord:
         self.reason = reason
         self.raw_line = raw_line
 
-def __str__(self):
-    return f"[{self.filename}: Row {self.row_number}] Field {self.field} rejected: {self.reason}"
+    def __str__(self):
+        return f"[{self.filename}: Row {self.row_number}] Field {self.field} rejected: {self.reason}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 ##### loads participants.csv and returns a dictionary of Participant objects keyed by ID #####
 def load_participants(file_path: Path, rejected_list: list) -> dict:

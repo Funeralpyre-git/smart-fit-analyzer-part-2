@@ -61,4 +61,4 @@ def export_results(results: list, rejected_records: list, output_dir: Path):
             f.write("No records were rejected.\n")
         else:
             for rec in rejected_records:
-                f.write(f"{str(rec)}\n")
+                f.write(f"{rec}\n")
