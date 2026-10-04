@@ -174,7 +174,13 @@ Rationale     : More than 50% of sensor readings were invalid or poor quality.
 ```
 **Sample Output File 2: `output/rejected_records.txt`**
 ```
+=====================================================
+              REJECTED CSV RECORDS LOG:              
+=====================================================
 
+[fitness_sessions.csv: Row 26] Field biometrics rejected: Sensor reading failed range or quality rules.
+[fitness_sessions_invalid.csv: Row 3] Field biometrics rejected: Type conversion failed: could not convert string to float: 'fast'
+[fitness_sessions_invalid.csv: Row 12] Field biometrics rejected: Type conversion failed: float() argument must be a string or a real number, not 'NoneType'
 ```
 
 ## 9. Scenario Coverage
