@@ -11,7 +11,7 @@
 
 ---
 ```
-# Smart Fitness Session Analyzer
+# Smart Fitness Session Analyzer Part 2
 
 
 ## 1. Overview
@@ -33,10 +33,13 @@ smart-fitness-analyzer/
 ├── utils.py			# Standalone helper functions for validation, math, and report formatting
 ├── models.py			# Domain classes (Participants, Observation, Session)
 ├── analyzer.py			# Analysis hierarchy (BaseAnalyzer and FitnessAnalyzer)
-├── sample_data.py		# Mock sensor streams for all 5 mandatory scenarios
 ├── main.py				# Application running all scenarios
 ├── tests.py			# Unit test suite verifying logic across scenarios and edge cases
-├── data_generator.py	# Supplied data generator module
+├── vvv NEW vvv
+├── exceptions.py		# Defines custom exception classes for error handling
+├── validators.py		# Encapsulates regular expression pattern
+├── loader.py       	# Handles CSV file ingestion using Python's csv module, type conversion, participant mapping, and rejected record tracking
+├── reporter.py			# Exports the final analysis results and error logs into formatted files
 └── README.md			# Documentation
 ```
 The codebase is decomposed into specialized modules to improve readability and maintainability:
@@ -46,10 +49,11 @@ The codebase is decomposed into specialized modules to improve readability and m
 
 ## 3. Class Design
 The application is structured around four primary classes, each adhering to the Single Responsibility Principle:</br> </br>
-```Participant``` manages individual user demographic data and personal baseline reference values (```resting_hr```, ```max_hr```). It serves as the personal benchmark for computing relative exertion and intensity percentages. Also provides a ```@classmethod from_profile(product_dict, age)``` factory method to construct ```Participant``` instances directly from raw profile dictionaries produced by ```data_generator.py```</br> </br>
+```Participant``` manages individual user demographic data and personal baseline reference values (```resting_hr```, ```max_hr```). It serves as the personal benchmark for computing relative exertion and intensity percentages.</br> </br>
 ```Observation``` encapsulates a single time-window sensor reading. It parses raw measurement dictionaries, validates sensor ranges, and exposes cleaned, ready-only biometric properties.</br> </br>
-```Session``` represents a complete workout session composed of sequential ```Observation``` windows. It manages time-series collections, calculates summary statistics (min, max, avg), filters invalid data, and evaluates tail-end recovery trends.</br> </br>
+```Session``` represents a complete workout session composed of sequential ```Observation``` windows. It manages time-series collections, calculates summary statistics (min, max, avg), filters invalid observations, and evaluates tail-end recovery trends.</br> </br>
 ```BaseAnalyzer``` & ```FitnessAnalyzer``` evaluates session metrics and outputs structured classification dictionaries and rationales. It applies classification algorithms (resting, moderate activity, high activity, recovering, or insufficient data) and checks data completeness.
+```RejectedRecord``` encapsulates metadata for CSV rows rejected during loading. Formats error entries for export into ```rejected_records.txt```.
 
 ## 4. Object-Oriented Design
 **Composition**\
@@ -58,6 +62,15 @@ Demonstrated in the ```Session``` class, which contains a collection of ```Obser
 Demonstrated in ```Observation``` and ```Participant``` classes through protected attributes (e.g., ```_raw_data```, ```_resting_hr```, ```_max_hr```, ```_is_valid```). Access to these attributes is controlled via read-only ```@property``` decorators, preventing unauthorized direct modification.</br> </br>
 **Inheritance & Method Overriding**\
 ```BaseAnalyzer``` serves as an abstract base class defining the ```analyze(session)``` interface. ```FitnessAnalyzer``` inherits from ```BaseAnalyzer``` and overrides ```analyze()``` to implement fitness-specific classification logic and threshold rules.</br> </br>
+**Custom Exception Hierarchy**
+Extends standard library error handling by defining two explitic exception classes derived from ```ValueError```:
+```
+Class InvalidIdentifierError(ValueError):
+	pass
+
+class InvalidRecordError(ValueError):
+	pass
+```
 **Class Methods & Static Methods**
 * Class Method (```@classmethod```):
 	* ```Participant.from_profile(profile_dict, age)``` acts as factory constructor converting raw profile dictionaries from ```data_generator.py``` into ```Participant``` instances.
@@ -65,12 +78,21 @@ Demonstrated in ```Observation``` and ```Participant``` classes through protecte
 * Static Method (```@staticmethod)```:
 	*  ```FitnessAnalyzer.is_sufficient_data(usable_count), total_count)``` provides a utility function to determine if valid readings meet the minimum 50% data threshold without accessing instance state.
 
-## 5. Standalone Utility Functions
-The project includes four standalone utility functions for validation, math, and output formatting:
-1. ```validate_sensor_reading(obs: dict) -> bool``` checks for required keys, validates physical biometric ranges (heart rate 30-220 bpm, Activity 0.0-1.0, Temp 20-45°C), and enforces signal quality >= 0.70.
-2. ```compute_safe_average(values: list) -> float``` safely calculates the arithmetic mean over non-empty numerical lists.
-3. ```calculate_relative_intensity(current_hr: float, max_hr: float) -> float``` compares exertion as a percentage of max heart rate (```(current_hr / max_hr) * 100```).
-4. ```format_console_report(summary_dict) ->  str``` formats structured analysis dictionaries into human-readable console reports.
+## 5. Regular Expression & Validation Rules
+**Regular Expression Rules**
+Identifiers in CSV files must strictly match anchored patterns:
+* **Participant ID**: ```^P\d{3}$``` (Matches ```P``` followed by exactly three digits, e.g., ```P001, P002```).
+* **Session ID**: ```^FIT-\d{4}-\d{3}$``` (Matches ```FIT-``` followed by 4-digit year and 3-digit sequence, e.g., ```FIT-2026-001```).
+**Biometric Range & Data Quality Rules**
+A sensor observation row is rejected or marked invalid if:
+* Any required CSV column is missing or blank.
+* Biometric fields fail numeric float conversion.
+* Physiological values fall outside physical bounds:
+	* ```heart_rate```: 30.0 to 220.0 bpm
+ 	* ```activity_level```: 0.0 to 1.0
+  	* ```temperature```: 20.0 to 45.0 °C
+* ```signal_quality``` falls below ```0.70```.
+* Participant ID does not exist in loaded participant profiles.
 
 ## 6. Assumptions & Classification Logic
 **Data Validation Ruleset**\
@@ -79,7 +101,7 @@ An observation is flagged as invalid if:
 * ```signal_quality``` is below 0.70.
 * Biometric values fall outside physiological limits (e.g., heart rate < 30 or > 220 bpm, activity level < 0.0 or > 1.0.
 
-**Classification Rules**
+**Classification Logic & Rules**
 * **Insufficient Data**: Triggered if less than 50% of session observations are valid.
 * **Resting**: Relative Heart Rate < 55% of max HR.
 * **Moderate Activity**: 55% <= Relative Heart Rate < 75% of max HR.
@@ -96,26 +118,63 @@ An observation is flagged as invalid if:
 **Instructions**
 1. Clone the repository
 	```
-	git clone https://github.com/Funeralpyre-git/smart-fit-analyzer.git
-	cd /smart-fit-analyzer
+	git clone https://github.com/Funeralpyre-git/smart-fit-analyzer-part-2
+	cd /smart-fit-analyzer-part-2
 	```
 2. Run the main application:
 	```
-	python3 main.py
+	python3 main.py --profiles participants.csv --sessions fitness_sessions.csv fitness_sessions_invalid.csv --output output
 	```
 3. Run the test suite:
 	```
 	python3 -m unittest tests.py
 	```
 ## 8. Example Output
+**Console Completion Summary**
 ```
---- Scenario: HIGH_ACTIVITY ---
-=== FITNESS SESSION REPORT ===
-Usable Samples : 10/10
-Classification : moderate_activity
-Rationale      : Heart rate indicates moderate activity (72.0% of max HR). 
-Avg Heart Rate : 136.8 bpm
-==============================
+Loading profiles...
+Loading sessions...
+Analyzing sessions...
+Generating report...
+
+==================================================
+           PROCESSING COMPLETE
+==================================================
+Accepted Sessions Processed: 8
+Rejected Records Logged    : 14
+Report Directory           : C:\Users\User\Projects\smart-fit-analyzer-part-2\output
+==================================================
+```
+**Sample Output File 1: `output/analysis_summary.csv`**
+```
+FIT-2026-001,P001,6,6,resting,68.83,0.09
+FIT-2026-002,P002,6,6,moderate_activity,102.0,0.5
+FIT-2026-003,P003,6,6,moderate_activity,132.5,0.75
+FIT-2026-004,P001,6,6,recovering,113.17,0.55
+FIT-2026-005,P002,0,5,insufficient_data,N/A,N/A
+FIT-2026-101,P001,2,4,resting,98.0,0.44
+FIT-2026-102,P002,0,3,insufficient_data,N/A,N/A
+FIT-2026-103,P003,0,1,insufficient_data,N/A,N/A
+```
+**Sample Output File 2: `output/analysis_report.txt`**
+```
+==================================================
+Session ID    : FIT-2026-004
+Participant ID: P001
+Usable samples: 6/6
+Classification: recovering
+Rationale     : Heart rate indicates moderate activity (61.17% of max HR). Significant decline in heart rate detected towards session end.
+==================================================
+Session ID    : FIT-2026-005
+Participant ID: P002
+Usable samples: 0/5
+Classification: insufficient_data
+Rationale     : More than 50% of sensor readings were invalid or poor quality.
+==================================================
+```
+**Sample Output File 2: `output/rejected_records.txt`**
+```
+
 ```
 
 ## 9. Scenario Coverage
