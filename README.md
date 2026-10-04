@@ -33,12 +33,12 @@ smart-fitness-analyzer/
 ├── utils.py			# Standalone helper functions for validation, math, and report formatting
 ├── models.py			# Domain classes (Participants, Observation, Session)
 ├── analyzer.py			# Analysis hierarchy (BaseAnalyzer and FitnessAnalyzer)
-├── main.py				# Application running all scenarios
+├── main.py			# Application running all scenarios
 ├── tests.py			# Unit test suite verifying logic across scenarios and edge cases
 ├── vvv NEW vvv
 ├── exceptions.py		# Defines custom exception classes for error handling
 ├── validators.py		# Encapsulates regular expression pattern
-├── loader.py       	# Handles CSV file ingestion using Python's csv module, type conversion, participant mapping, and rejected record tracking
+├── loader.py			# Handles CSV file ingestion using Python's csv module, type conversion, participant mapping, and rejected record tracking
 ├── reporter.py			# Exports the final analysis results and error logs into formatted files
 └── README.md			# Documentation
 ```
